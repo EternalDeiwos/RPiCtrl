@@ -1,10 +1,12 @@
 package rpictrl.client;
 
 import java.awt.BorderLayout;
+import java.awt.Dimension;
 import java.awt.event.KeyEvent;
 import java.awt.event.KeyListener;
 import java.net.InetAddress;
 import java.net.UnknownHostException;
+import java.util.PriorityQueue;
 import java.util.Queue;
 import javax.swing.*;
 import rpictrl.Control.Command;
@@ -21,8 +23,10 @@ public class mainClientFrame extends JFrame implements KeyListener {
         JLabel emptyLabel = new JLabel();
         this.getContentPane().add(emptyLabel, BorderLayout.CENTER);
         
-        this.setSize(1000, 1000);
-        emptyLabel.setSize(1000, 1000);
+        this.commandQueue = new PriorityQueue<String>();
+        
+        this.setPreferredSize(new Dimension(1000, 1000));
+        emptyLabel.setPreferredSize(new Dimension(1000, 1000));
         
         this.pack();
         this.setVisible(true);
@@ -33,6 +37,8 @@ public class mainClientFrame extends JFrame implements KeyListener {
         } catch (UnknownHostException x) {
             System.err.println("UnknownHostException: " + x.getMessage());
         }
+        
+        this.addKeyListener(this);
     }
     
     public void executeCommand(int command) {
@@ -89,7 +95,6 @@ public class mainClientFrame extends JFrame implements KeyListener {
 
     @Override
     public void keyReleased(KeyEvent ke) {
-        System.out.println(ke.getKeyChar());
         switch (ke.getKeyChar()) {
             case 'w': case KeyEvent.VK_UP:
                 if (!this.s) {
