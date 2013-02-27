@@ -2,7 +2,7 @@ package rpictrl.Control;
 
 import java.net.InetAddress;
 import java.net.UnknownHostException;
-import java.util.PriorityQueue;
+import java.util.LinkedList;
 import java.util.Queue;
 import rpictrl.socket.CommandServer;
 
@@ -13,7 +13,7 @@ public class CommandHandler extends Thread {
     
     Bridge bridge;
     
-    Queue<String> commandQueue = new PriorityQueue<String>();
+    Queue<String> commandQueue = new LinkedList<String>();
     
     CommandServer server;
     
@@ -36,11 +36,10 @@ public class CommandHandler extends Thread {
             System.exit(-1);
         }
         server.start();
-//        bridge.start();
+        bridge.start();
+        String current;
         while (!this.masterStop) {
-            if (!commandQueue.isEmpty()) {
-                String current = this.commandQueue.poll();
-                System.out.println(current);
+            if ((current = this.commandQueue.poll()) != null) {
                 switch (Integer.parseInt(current)) {
                     case Command.FORWARD:
                         this.bridge.y = 1;
@@ -76,6 +75,8 @@ public class CommandHandler extends Thread {
                         break;
                     default: System.err.println("Unknown Command"); break;
                 }
+            } else {
+                //System.out.println("Queue is empty");
             }
         }
     }

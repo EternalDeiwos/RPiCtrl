@@ -7,11 +7,9 @@ import java.io.PrintWriter;
 import java.net.Socket;
 import java.net.SocketException;
 import java.net.UnknownHostException;
-import java.util.Queue;
+import javax.swing.JFrame;
 
-public class CommandClient extends Thread {
-    private static int threadCount = 0;
-    private int threadNum = 0;
+public class CommandClient {
     String HOST;
     int PORT;
     boolean masterStop = false;
@@ -19,20 +17,10 @@ public class CommandClient extends Thread {
     Socket socket;
     BufferedReader reader;
     PrintWriter writer;
-    Queue<String> commandQueue;
     
-    public CommandClient(String host, int port, Queue<String> commandQueue) {
-        super("CommandClient-" + CommandClient.threadCount);
-        this.threadNum = CommandClient.threadCount++;
+    public CommandClient(String host, int port) {
         this.HOST = host;
         this.PORT = port;
-        try {
-            if ((this.commandQueue = commandQueue) == null) {
-                throw new NullPointerException("F*CKING QUEUES!");
-            }
-        } catch (NullPointerException e) {
-            System.err.println("Your commandQueue is being a silly twat: " + e.getMessage());
-        }
         
         try {
             this.socket = new Socket(HOST, PORT);
@@ -66,23 +54,16 @@ public class CommandClient extends Thread {
         }
     }
     
-    @Override
-    public void run() {
+    public void send(String msg) {
         try {
-            while (!this.masterStop) {
-                if (!this.commandQueue.isEmpty()) {
-                    String msg = this.commandQueue.remove();
-                    //Debug
-                    System.out.println("Sending Command -> " + msg);
-                    //long startTime = System.currentTimeMillis();
-                    this.writer.println(msg);
-                    String reply;
+            //System.out.println("Sending Command -> " + msg);
+            this.writer.println(msg);
+            String reply;
 
-                    if ((reply = this.reader.readLine()) != null) {
-                        //long endTime = System.currentTimeMillis();
-                        //System.out.println("Process took " + (endTime-startTime) + "ms...");
-                        System.out.println(reply);
-                    }
+            if ((reply = this.reader.readLine()) != null) {
+                System.out.println(reply);
+                if (reply.equals("-1")) {
+                    closeConnection();
                 }
             }
         } catch (SocketException e) {
@@ -106,23 +87,18 @@ public class CommandClient extends Thread {
     }
     
     public void halt() {
-        this.masterStop = true;
+        this.writer.println("-1");
         closeConnection();
-    }
-    
-    public int getThreadNum() {
-        return this.threadNum;
-    }
-    
-    public static int getThreadCount() {
-        return CommandClient.threadCount;
     }
     
     public void closeConnection() {
         try {
-            this.socket.close();
+            this.socket.shutdownInput();
+            this.socket.shutdownOutput();
+            this.masterStop = true;
             this.writer.close();
             this.reader.close();
+            this.socket.close();
         } catch (IOException e) {
             System.err.println("IOException when closing the socket: " + e.getMessage());
             System.exit(-1);

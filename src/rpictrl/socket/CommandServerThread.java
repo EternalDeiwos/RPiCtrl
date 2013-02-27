@@ -8,6 +8,7 @@ import java.net.Socket;
 import java.net.SocketException;
 import java.util.List;
 import java.util.Queue;
+import rpictrl.Control.Command;
 
 public class CommandServerThread extends Thread {
     public static int thread_count = 0;
@@ -40,9 +41,13 @@ public class CommandServerThread extends Thread {
             
             while (!masterStop) {
                 msg = this.reader.readLine();
-                System.out.println("Recieved Command on " + this.getName() + " -> " + msg);
-                this.writer.println("Recieved Command -> " + msg);
-                this.commandQueue.add(msg);
+                System.out.println("Recieved Command on " + this.getName() + " -> " + Command.getCommand(Integer.parseInt(msg)));
+                if (msg.equals("-1")) {
+                    halt();
+                } else {
+                    this.writer.println("Command Recieved on Server -> " + Command.getCommand(Integer.parseInt(msg)));
+                    this.commandQueue.add(msg);
+                }
             }
             
         } catch (SocketException e) {
@@ -59,11 +64,12 @@ public class CommandServerThread extends Thread {
     
     public void halt() {
         try {
+            this.masterStop = true;
             this.reader.close();
             this.writer.close();
             this.client.close();
             this.clientList.remove(this);
-            this.masterStop = true;
+            System.out.println(this.getName() + " shutting down...");
         } catch (SocketException e) {
             System.err.println("Client SocketException: " + e.getMessage());
             System.exit(-1);
