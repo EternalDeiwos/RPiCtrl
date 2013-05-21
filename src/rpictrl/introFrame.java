@@ -36,24 +36,24 @@ public class introFrame extends JFrame implements ActionListener {
         this.setVisible(true);
     }
     
-    public void startServer() {
-        this.handler = new CommandHandler();
-        this.handler.start();
-        this.dispose();
+    public static CommandHandler startServer() {
+        CommandHandler handler = new CommandHandler();
+        handler.start();
+        return handler;
     }
     
-    public void startClient() {
-        this.clientFrame = new mainClientFrame();
-        this.clientFrame.run();
-        this.dispose();
+    public static mainClientFrame startClient() {
+        mainClientFrame clientFrame = new mainClientFrame();
+        clientFrame.run();
+        return clientFrame;        
     }
 
     @Override
     public void actionPerformed(ActionEvent ae) {
         if ("server".equals(ae.getActionCommand())) {
-            startServer();
+            this.handler = introFrame.startServer();
         } else {
-            startClient();
+            this.clientFrame = introFrame.startClient();
         }
     }
 }

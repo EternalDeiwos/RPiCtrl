@@ -6,17 +6,22 @@ import java.awt.event.KeyEvent;
 import java.awt.event.KeyListener;
 import java.awt.event.WindowEvent;
 import java.awt.event.WindowListener;
-import java.net.InetAddress;
-import java.net.UnknownHostException;
+import java.io.IOException;
+import java.util.HashMap;
+import java.util.Map;
+import java.util.Set;
 import javax.swing.*;
 import rpictrl.Control.Command;
+import rpictrl.Control.Command.CommandCreator;
+import rpictrl.onShutdown;
 
 public class mainClientFrame extends JFrame implements KeyListener, WindowListener {
-    boolean q=false, w=false, e=false, a=false, s=false, d=false;
-    
+    HashMap<Integer, Boolean> keysDown = new HashMap<>();
     CommandClient client;
+    Command cmd = new Command();
     
     public void run() {
+        Runtime.getRuntime().addShutdownHook(new onShutdown(this));
         this.setDefaultCloseOperation(JFrame.DISPOSE_ON_CLOSE);
         
         JLabel emptyLabel = new JLabel();
@@ -28,18 +33,59 @@ public class mainClientFrame extends JFrame implements KeyListener, WindowListen
         this.pack();
         this.setVisible(true);
         
-        try {
-            this.client = new CommandClient(InetAddress.getLocalHost().getHostAddress(), 53789);
-        } catch (UnknownHostException x) {
-            System.err.println("UnknownHostException: " + x.getMessage());
-        }
-        
+//        try {
+            this.client = new CommandClient("10.0.0.6", 53789);
+//        } catch (UnknownHostException x) {
+//            System.err.println("UnknownHostException: " + x.getMessage());
+//        }
+        keysDown.put(KeyEvent.VK_UP, false);
+        keysDown.put(KeyEvent.VK_DOWN, false);
+        keysDown.put(KeyEvent.VK_LEFT, false);
+        keysDown.put(KeyEvent.VK_RIGHT, false);
+            
         this.addKeyListener(this);
         this.addWindowListener(this);
     }
     
-    public void executeCommand(int command) {
-        this.client.send(command + "");
+    public void commandBuilder() {
+        CommandCreator builder = cmd.new CommandCreator();
+        Set<Map.Entry<Integer, Boolean>> set = keysDown.entrySet();
+        for (Map.Entry<Integer, Boolean> entry : set) {
+            switch (entry.getKey()) {
+                case KeyEvent.VK_UP:
+                    if (entry.getValue()) {
+                        builder.setThrust(Command.ThrustCommand.FORWARD);
+                    }
+                    break;
+                case KeyEvent.VK_DOWN:
+                    if (entry.getValue()) {
+                        builder.setThrust(Command.ThrustCommand.BACKWARD);
+                    }
+                    break;
+                case KeyEvent.VK_LEFT:
+                    if (entry.getValue()) {
+                        builder.setDirection(Command.DirectionCommand.LEFT);
+                    }
+                    break;
+                case KeyEvent.VK_RIGHT:
+                    if (entry.getValue()) {
+                        builder.setDirection(Command.DirectionCommand.RIGHT);
+                    }
+                    break;
+                default: break;
+            }
+            if (!keysDown.get(KeyEvent.VK_UP) && !keysDown.get(KeyEvent.VK_DOWN)) builder.setThrust(Command.ThrustCommand.OFF);
+            if (!keysDown.get(KeyEvent.VK_LEFT) && !keysDown.get(KeyEvent.VK_RIGHT)) builder.setDirection(Command.DirectionCommand.CENTER);
+        }
+        cmd = builder.getCommand();
+    }
+    
+    public CommandClient getClient() {
+        return client;
+    }
+    
+    public void executeCommand(Command cmd) {
+        this.client.send(cmd);
     }
 
     @Override
@@ -51,99 +97,57 @@ public class mainClientFrame extends JFrame implements KeyListener, WindowListen
     public void keyPressed(KeyEvent ke) {
         switch (ke.getKeyChar()) {
             case 'w': case KeyEvent.VK_UP:
-                if (!this.s) {
-                    executeCommand(Command.FORWARD);
-                } else {
-                    executeCommand(Command.STOP);
-                }
-                this.w = true;
+                keysDown.put(KeyEvent.VK_UP, true);
                 break;
             case 's': case KeyEvent.VK_DOWN:
-                if (!this.w) {
-                    executeCommand(Command.BACKWARD);
-                } else {
-                    executeCommand(Command.STOP);
-                }
-                this.s = true;
+                keysDown.put(KeyEvent.VK_DOWN, true);
                 break;
             case 'd': case KeyEvent.VK_RIGHT:
-                if (!this.a) {
-                    executeCommand(Command.RIGHT);
-                } else {
-                    executeCommand(Command.CENTER);
-                }
-                this.d = true;
+                keysDown.put(KeyEvent.VK_RIGHT, true);
                 break;
             case 'a': case KeyEvent.VK_LEFT:
-                if (!this.d) {
-                    executeCommand(Command.LEFT);
-                } else {
-                    executeCommand(Command.CENTER);
-                }
-                this.a = true;
+                keysDown.put(KeyEvent.VK_LEFT, true);
                 break;
             case 'q':
-                if (!this.e) {
-                    executeCommand(Command.SPEED_DOWN);
-                }
-                this.q = true;
+                executeCommand(new Command(Command.ThrustCommand.NONE, Command.DirectionCommand.NONE, Command.SpeedCommand.UP, Command.MiscCommand.NONE));
                 break;
             case 'e':
-                if (!this.q) {
-                    executeCommand(Command.SPEED_UP);
-                }
-                this.e = true;
+                executeCommand(new Command(Command.ThrustCommand.NONE, Command.DirectionCommand.NONE, Command.SpeedCommand.DOWN, Command.MiscCommand.NONE));
                 break;
+            case 'x': case KeyEvent.VK_ESCAPE:
+                executeCommand(new Command(Command.ThrustCommand.NONE, Command.DirectionCommand.NONE, Command.SpeedCommand.NONE, Command.MiscCommand.QUIT));
+                try {
+                    this.client.halt();
+                } catch (IOException ex) {
+                    System.err.println(ex.getMessage());
+                    System.exit(-1);
+                }
+                this.dispose();
             default: break;
-        } 
+        }
+        commandBuilder();
+        executeCommand(cmd);
     }
 
     @Override
     public void keyReleased(KeyEvent ke) {
         switch (ke.getKeyChar()) {
             case 'w': case KeyEvent.VK_UP:
-                if (!this.s) {
-                    executeCommand(Command.STOP);
-                } else {
-                    executeCommand(Command.BACKWARD);
-                }
-                this.w = false;
+                keysDown.put(KeyEvent.VK_UP, false);
                 break;
             case 's': case KeyEvent.VK_DOWN:
-                if (!this.w) {
-                    executeCommand(Command.STOP);
-                } else {
-                    executeCommand(Command.FORWARD);
-                }
-                this.s = false;
+                keysDown.put(KeyEvent.VK_DOWN, false);
                 break;
             case 'd': case KeyEvent.VK_RIGHT:
-                if (!this.s) {
-                    executeCommand(Command.CENTER);
-                } else {
-                    executeCommand(Command.LEFT);
-                }
-                this.d = false;
+                keysDown.put(KeyEvent.VK_RIGHT, false);
                 break;
             case 'a': case KeyEvent.VK_LEFT:
-                if (!this.s) {
-                    executeCommand(Command.CENTER);
-                } else {
-                    executeCommand(Command.RIGHT);
-                }
-                this.a = false;
+                keysDown.put(KeyEvent.VK_LEFT, false);
                 break;
-            case 'q':
-                this.q = false;
-                break;
-            case 'e':
-                this.e = false;
-                break;
-            case 'x':
-                this.client.halt();
-                this.dispose();
             default: break;
         }
+        commandBuilder();
+        executeCommand(cmd);
     }
 
     @Override
@@ -154,13 +158,24 @@ public class mainClientFrame extends JFrame implements KeyListener, WindowListen
     @Override
     public void windowClosing(WindowEvent e) {
         if (e.getWindow().equals(this)) {
-            this.client.halt();
+            try {
+                this.client.halt();
+            } catch (IOException ex) {
+                System.err.println(ex.getMessage());
+                System.exit(-1);
+            }
         }
     }
 
     @Override
     public void windowClosed(WindowEvent e) {
-        
+        try {
+            this.client.halt();
+        } catch (IOException ex) {
+            System.err.println(ex.getMessage());
+            System.exit(-1);
+        }
+        this.dispose();
     }
 
     @Override

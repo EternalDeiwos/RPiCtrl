@@ -4,9 +4,10 @@ import java.io.IOException;
 import java.net.BindException;
 import java.net.ServerSocket;
 import java.net.SocketException;
-import java.util.ArrayList;
+import java.util.LinkedList;
 import java.util.List;
-import java.util.Queue;
+import rpictrl.Control.Command;
+import rpictrl.Control.CommandHandler;
 
 public class CommandServer extends Thread {
     private static int threadCount = 0;
@@ -16,15 +17,17 @@ public class CommandServer extends Thread {
     int PORT;
     boolean masterStop;
     
-    Queue<String> commandQueue;
-    List<CommandServerThread> threads = new ArrayList<CommandServerThread>();
+    private CommandHandler handler;
     
-    public CommandServer(String host, int port, Queue<String> commandQueue) {
+    //Queue<String> commandQueue;
+    List<CommandServerThread> threads = new LinkedList<>();
+    
+    public CommandServer(String host, int port, CommandHandler handler) {
         super("CommandServer-" + CommandServer.threadCount);
         this.threadNum = CommandServer.threadCount++;
         this.HOST = host;
         this.PORT = port;
-        this.commandQueue = commandQueue;
+        this.handler = handler;
     }
     
     @Override
@@ -48,7 +51,7 @@ public class CommandServer extends Thread {
         System.out.println("Attempting to Listen on port " + this.PORT + "...");
         while (!this.masterStop) {
             try {
-                CommandServerThread current = new CommandServerThread(this.server.accept(), this.commandQueue, this.threads);
+                CommandServerThread current = new CommandServerThread(this.server.accept(), this.threads, handler);
                 if (current.client.isConnected()) {
                     System.out.println("Connection recieved, starting new handler thread.");
                     this.threads.add(current);
